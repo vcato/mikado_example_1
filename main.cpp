@@ -9,9 +9,8 @@
 #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
 #define CHANGE_DATABASE_TO_REFERENCE 0
 #define INITIALIZE_REFERENCE 0
-#define ADD_DATABASE_PARAMETER 0
-#define PASS_DATABASE_TO_UI 0
-#define CREATE_DATABASE_IN_APP 1
+#define ADD_DATABASE_PARAMETER 1
+#define PASS_DATABASE_TO_UI 1
 
 using std::vector;
 using std::string;
@@ -86,9 +85,7 @@ class App {
     }
 
   private:
-#if CREATE_DATABASE_IN_APP
     FileDB database;
-#endif
     UI ui;
     static inline string store_path;
 };
