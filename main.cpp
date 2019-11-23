@@ -7,6 +7,7 @@
 #include "filedb.hpp"
 
 #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+#define CHANGE_DATABASE_TO_REFERENCE 0
 
 using std::vector;
 using std::string;
@@ -30,7 +31,11 @@ class UI {
   private:
     Frame frame;
 #if !REPLACE_FILEDB_WITH_DATABASE_INTERFACE
+#if !CHANGE_DATABASE_TO_REFERENCE
     FileDB database;
+#else
+    FileDB &database;
+#endif
 #else
     Database &database;
 #endif
