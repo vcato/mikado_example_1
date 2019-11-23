@@ -6,6 +6,8 @@
 #include "applicationexception.hpp"
 #include "filedb.hpp"
 
+#define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+
 using std::vector;
 using std::string;
 using std::make_unique;
@@ -27,7 +29,11 @@ class UI {
 
   private:
     Frame frame;
+#if !REPLACE_FILEDB_WITH_DATABASE_INTERFACE
     FileDB database;
+#else
+    Database &database;
+#endif
 
     void addLoginSelector(const vector<string> &users)
     {
