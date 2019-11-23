@@ -8,9 +8,7 @@
 
 #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
 #define CHANGE_DATABASE_TO_REFERENCE 0
-#define INITIALIZE_REFERENCE 0
-#define ADD_DATABASE_PARAMETER 1
-#define PASS_DATABASE_TO_UI 1
+#define INITIALIZE_REFERENCE 1
 
 using std::vector;
 using std::string;
@@ -20,11 +18,7 @@ using std::cerr;
 
 class UI {
   public:
-#if !ADD_DATABASE_PARAMETER
-    UI();
-#else
     UI(FileDB &);
-#endif
 
     void showLogin()
     {
@@ -62,12 +56,10 @@ class UI {
 
 class App {
   public:
-#if PASS_DATABASE_TO_UI
     App()
     : ui(database)
     {
     }
-#endif
 
     void launch()
     {
@@ -109,11 +101,7 @@ class Launcher {
 
 
 
-#if !ADD_DATABASE_PARAMETER
-UI::UI()
-#else
 UI::UI(FileDB &database)
-#endif
 #if INITIALIZE_REFERENCE
 : database(database)
 #endif
