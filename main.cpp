@@ -7,12 +7,18 @@
 #include "filedb.hpp"
 
 #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
-#define CHANGE_DATABASE_TO_REFERENCE 1
+#define CREATE_DATABASE_INTERFACE 1
 
 using std::vector;
 using std::string;
 using std::make_unique;
 using std::cerr;
+
+
+#if CREATE_DATABASE_INTERFACE
+struct Database {
+};
+#endif
 
 
 class UI {
@@ -31,11 +37,7 @@ class UI {
   private:
     Frame frame;
 #if !REPLACE_FILEDB_WITH_DATABASE_INTERFACE
-#if !CHANGE_DATABASE_TO_REFERENCE
-    FileDB database;
-#else
     FileDB &database;
-#endif
 #else
     Database &database;
 #endif
