@@ -9,6 +9,7 @@
 #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
 #define CHANGE_PARAMETER_TO_ADAPTER 0
 #define PASS_ADAPTER 0
+#define MOVE_SET_STORE_CALL 1
 
 using std::vector;
 using std::string;
@@ -83,6 +84,9 @@ class App {
     : ui(database_adapter)
 #endif
     {
+#if MOVE_SET_STORE_CALL
+      database.setStore(App::getStorageFile());
+#endif
     }
 
     void launch()
@@ -135,7 +139,9 @@ UI::UI(FileDBAdapter &database)
 #endif
 : database(database)
 {
+#if !MOVE_SET_STORE_CALL
   database.setStore(App::getStorageFile());
+#endif
 }
 
 
