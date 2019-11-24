@@ -64,8 +64,9 @@ class UI {
 
 class App {
   public:
-    App()
-    : ui(database_adapter)
+    App(FileDB &database)
+    : database_adapter(database),
+      ui(database_adapter)
     {
       database.setStore(App::getStorageFile());
     }
@@ -86,8 +87,7 @@ class App {
     }
 
   private:
-    FileDB database;
-    FileDBAdapter database_adapter{database};
+    FileDBAdapter database_adapter;
     UI ui;
     static inline string store_path;
 };
@@ -99,7 +99,8 @@ class Launcher {
     {
       try {
         App::setStorageFile(argv[0]);
-        App app;
+        FileDB database;
+        App app(database);
         app.launch();
       }
       catch (ApplicationException &e) {
