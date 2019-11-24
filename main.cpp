@@ -7,6 +7,7 @@
 #include "filedb.hpp"
 
 #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+#define CHANGE_PARAMETER_TO_ADAPTER 0
 
 using std::vector;
 using std::string;
@@ -100,7 +101,11 @@ class Launcher {
 
 
 
+#if !CHANGE_PARAMETER_TO_ADAPTER
 UI::UI(FileDB &database)
+#else
+UI::UI(FileDBAdapter &database)
+#endif
 : database(database)
 {
   database.setStore(App::getStorageFile());
