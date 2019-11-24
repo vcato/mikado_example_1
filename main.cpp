@@ -9,6 +9,7 @@
 #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
 #define CHANGE_PARAMETER_TO_ADAPTER 0
 #define PASS_ADAPTER 0
+#define CREATE_ADAPTER_CONSTRUCTOR 1
 
 using std::vector;
 using std::string;
@@ -23,6 +24,13 @@ struct Database {
 
 struct FileDBAdapter : Database {
   FileDB &file_db;
+
+#if CREATE_ADAPTER_CONSTRUCTOR
+  FileDBAdapter(FileDB &file_db)
+  : file_db(file_db)
+  {
+  }
+#endif
 
   std::vector<std::string> load(const std::string &name) override
   {
