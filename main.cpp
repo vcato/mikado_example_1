@@ -26,7 +26,11 @@ struct FileDBAdapter {
 
 class UI {
   public:
+#if !CHANGE_PARAMETER_TO_ADAPTER
     UI(FileDB &);
+#else
+    UI(FileDBAdapter &);
+#endif
 
     void showLogin()
     {
