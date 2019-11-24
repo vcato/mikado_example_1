@@ -64,8 +64,8 @@ class UI {
 
 class App {
   public:
-    App(FileDBAdapter &database_adapter)
-    : ui(database_adapter)
+    App(Database &database)
+    : ui(database)
     {
     }
 
