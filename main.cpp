@@ -97,7 +97,7 @@ class Launcher {
       try {
         FileDB database;
         App::setStorageFile(argv[0]);
-        database.setStore(App::getStorageFile());
+        database.setStore(argv[0]);
         FileDBAdapter database_adapter(database);
         App app(database_adapter);
         app.launch();
