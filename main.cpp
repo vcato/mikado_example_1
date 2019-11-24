@@ -10,7 +10,6 @@
 #define CHANGE_PARAMETER_TO_ADAPTER 0
 #define PASS_ADAPTER 0
 #define ADD_LOAD_METHOD_TO_ADAPTER 0
-#define ADD_FILEDB_MEMBER_TO_ADAPTER 1
 
 using std::vector;
 using std::string;
@@ -24,9 +23,7 @@ struct Database {
 
 
 struct FileDBAdapter : Database {
-#if ADD_FILEDB_MEMBER_TO_ADAPTER
   FileDB &file_db;
-#endif
 
 #if ADD_LOAD_METHOD_TO_ADAPTER
   std::vector<std::string> load(const std::string &/*name*/) override
@@ -104,11 +101,7 @@ class App {
   private:
     FileDB database;
 #if PASS_ADAPTER
-#if !ADD_FILEDB_MEMBER_TO_ADAPTER
-    FileDBAdapter database_adapter;
-#else
     FileDBAdapter database_adapter{database};
-#endif
 #endif
     UI ui;
     static inline string store_path;
