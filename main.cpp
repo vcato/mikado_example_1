@@ -8,6 +8,8 @@
 
 #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
 #define CHANGE_PARAMETER_TO_ADAPTER 0
+#define PASS_ADAPTER 0
+#define MAKE_ADAPTER_DERIVE_FROM_DATABASE 1
 
 using std::vector;
 using std::string;
@@ -20,8 +22,13 @@ struct Database {
 };
 
 
+#if !MAKE_ADAPTER_DERIVE_FROM_DATABASE
 struct FileDBAdapter {
 };
+#else
+struct FileDBAdapter : Database {
+};
+#endif
 
 
 class UI {
@@ -65,7 +72,11 @@ class UI {
 class App {
   public:
     App()
+#if !PASS_ADAPTER
     : ui(database)
+#else
+    : ui(database_adapter)
+#endif
     {
     }
 
@@ -86,6 +97,9 @@ class App {
 
   private:
     FileDB database;
+#if PASS_ADAPTER
+    FileDBAdapter database_adapter;
+#endif
     UI ui;
     static inline string store_path;
 };
