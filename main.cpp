@@ -95,8 +95,8 @@ class Launcher {
     static void main(const vector<string> &argv)
     {
       try {
-        App::setStorageFile(argv[0]);
         FileDB database;
+        App::setStorageFile(argv[0]);
         database.setStore(App::getStorageFile());
         FileDBAdapter database_adapter(database);
         App app(database_adapter);
