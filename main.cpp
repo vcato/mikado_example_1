@@ -34,7 +34,7 @@ struct FileDBAdapter : Database {
 
 class UI {
   public:
-    UI(FileDBAdapter &);
+    UI(Database &);
 
     void showLogin()
     {
@@ -111,7 +111,7 @@ class Launcher {
 
 
 
-UI::UI(FileDBAdapter &database)
+UI::UI(Database &database)
 : database(database)
 {
 }
