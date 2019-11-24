@@ -34,7 +34,7 @@ struct FileDBAdapter : Database {
 
 class UI {
   public:
-    UI(Database &);
+    UI(FileDBAdapter &);
 
     void showLogin()
     {
@@ -65,11 +65,7 @@ class UI {
 class App {
   public:
     App()
-#if !PASS_ADAPTER
-    : ui(database)
-#else
     : ui(database_adapter)
-#endif
     {
       database.setStore(App::getStorageFile());
     }
@@ -91,9 +87,7 @@ class App {
 
   private:
     FileDB database;
-#if PASS_ADAPTER
     FileDBAdapter database_adapter{database};
-#endif
     UI ui;
     static inline string store_path;
 };
@@ -117,11 +111,7 @@ class Launcher {
 
 
 
-#if !CHANGE_PARAMETER_TO_ADAPTER
-UI::UI(FileDB &database)
-#else
 UI::UI(FileDBAdapter &database)
-#endif
 : database(database)
 {
 }
