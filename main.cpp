@@ -7,7 +7,6 @@
 #include "filedb.hpp"
 
 #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
-#define ADD_LOAD_METHOD_TO_DATABASE 1
 
 using std::vector;
 using std::string;
@@ -16,9 +15,7 @@ using std::cerr;
 
 
 struct Database {
-#if ADD_LOAD_METHOD_TO_DATABASE
   virtual std::vector<std::string> load(const std::string &/*name*/) = 0;
-#endif
 };
 
 
