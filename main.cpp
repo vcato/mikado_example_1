@@ -74,19 +74,8 @@ class App {
       ui.showLogin();
     }
 
-    static const string& getStorageFile()
-    {
-      return store_path;
-    }
-
-    static void setStorageFile(const string &store_path)
-    {
-      App::store_path = store_path;
-    }
-
   private:
     UI ui;
-    static inline string store_path;
 };
 
 
@@ -96,7 +85,6 @@ class Launcher {
     {
       try {
         FileDB database;
-        App::setStorageFile(argv[0]);
         database.setStore(argv[0]);
         FileDBAdapter database_adapter(database);
         App app(database_adapter);
