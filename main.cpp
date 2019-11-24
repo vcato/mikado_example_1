@@ -8,6 +8,7 @@
 
 #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
 #define CHANGE_PARAMETER_TO_ADAPTER 0
+#define CREATE_ADAPTER 1
 
 using std::vector;
 using std::string;
@@ -18,6 +19,12 @@ using std::cerr;
 struct Database {
   virtual std::vector<std::string> load(const std::string &/*name*/) = 0;
 };
+
+
+#if CREATE_ADAPTER
+struct FileDBAdapter {
+};
+#endif
 
 
 class UI {
