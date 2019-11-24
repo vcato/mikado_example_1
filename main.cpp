@@ -68,7 +68,6 @@ class App {
     : database_adapter(database),
       ui(database_adapter)
     {
-      database.setStore(App::getStorageFile());
     }
 
     void launch()
@@ -100,6 +99,7 @@ class Launcher {
       try {
         App::setStorageFile(argv[0]);
         FileDB database;
+        database.setStore(App::getStorageFile());
         App app(database);
         app.launch();
       }
