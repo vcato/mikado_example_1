@@ -8,7 +8,6 @@
 
 #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
 #define CHANGE_PARAMETER_TO_ADAPTER 0
-#define CREATE_ADAPTER 1
 
 using std::vector;
 using std::string;
@@ -21,10 +20,8 @@ struct Database {
 };
 
 
-#if CREATE_ADAPTER
 struct FileDBAdapter {
 };
-#endif
 
 
 class UI {
