@@ -6,10 +6,6 @@
 #include "applicationexception.hpp"
 #include "filedb.hpp"
 
-#define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 1
-#define CHANGE_PARAMETER_TO_ADAPTER 1
-#define PASS_ADAPTER 1
-
 using std::vector;
 using std::string;
 using std::make_unique;
@@ -38,11 +34,7 @@ struct FileDBAdapter : Database {
 
 class UI {
   public:
-#if !CHANGE_PARAMETER_TO_ADAPTER
-    UI(FileDB &);
-#else
-    UI(FileDBAdapter &);
-#endif
+    UI(Database &);
 
     void showLogin()
     {
@@ -55,11 +47,7 @@ class UI {
 
   private:
     Frame frame;
-#if !REPLACE_FILEDB_WITH_DATABASE_INTERFACE
-    FileDB &database;
-#else
     Database &database;
-#endif
 
     void addLoginSelector(const vector<string> &users)
     {
