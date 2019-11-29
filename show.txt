@@ -1,0 +1,1255 @@
+We start with our Mikado goal of replacing the use of the concrete class FileDB with the use of a database interface.  We'll create a feature flag to represent this goal:
+
+ #include "applicationexception.hpp"
+ #include "filedb.hpp"
+ 
++#define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
++
+ using std::vector;
+ using std::string;
+ using std::make_unique;
+
+And we'll just naively replace the FileDB with a Database reference.
+
+   private:
+     Frame frame;
++#if !REPLACE_FILEDB_WITH_DATABASE_INTERFACE
+     FileDB database;
++#else
++    Database &database;
++#endif
+ 
+     void addLoginSelector(const vector<string> &users)
+     {
+
+If we enable the REPLACE_FILEDB_WITH_DATABASE_INTERFACE flag, we see that
+this unsurprisingly fails.
+
+    Add goal.
+
+diff --git a/main.cpp b/main.cpp
+index 04c659b..c26ca36 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -7,6 +7,7 @@
+ #include "filedb.hpp"
+ 
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
++#define CHANGE_DATABASE_TO_REFERENCE 0
+ 
+ using std::vector;
+ using std::string;
+@@ -30,7 +31,11 @@ class UI {
+   private:
+     Frame frame;
+ #if !REPLACE_FILEDB_WITH_DATABASE_INTERFACE
++#if !CHANGE_DATABASE_TO_REFERENCE
+     FileDB database;
++#else
++    FileDB &database;
++#endif
+ #else
+     Database &database;
+ #endif
+
+commit 2c75ecf23904a1b3b8137602d81d2a93a567236f
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 13:52:49 2019 -0500
+
+    Add nodes to first leaf.
+
+diff --git a/main.cpp b/main.cpp
+index c26ca36..3c88265 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -8,6 +8,10 @@
+ 
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+ #define CHANGE_DATABASE_TO_REFERENCE 0
++#define INITIALIZE_REFERENCE 0
++#define ADD_DATABASE_PARAMETER 0
++#define PASS_DATABASE_TO_UI 0
++#define CREATE_DATABASE_IN_APP 1
+ 
+ using std::vector;
+ using std::string;
+@@ -17,7 +21,11 @@ using std::cerr;
+ 
+ class UI {
+   public:
++#if !ADD_DATABASE_PARAMETER
+     UI();
++#else
++    UI(FileDB &);
++#endif
+ 
+     void showLogin()
+     {
+@@ -55,6 +63,13 @@ class UI {
+ 
+ class App {
+   public:
++#if PASS_DATABASE_TO_UI
++    App()
++    : ui(database)
++    {
++    }
++#endif
++
+     void launch()
+     {
+       ui.showLogin();
+@@ -71,6 +86,9 @@ class App {
+     }
+ 
+   private:
++#if CREATE_DATABASE_IN_APP
++    FileDB database;
++#endif
+     UI ui;
+     static inline string store_path;
+ };
+@@ -94,7 +112,14 @@ class Launcher {
+ 
+ 
+ 
++#if !ADD_DATABASE_PARAMETER
+ UI::UI()
++#else
++UI::UI(FileDB &database)
++#endif
++#if INITIALIZE_REFERENCE
++: database(database)
++#endif
+ {
+   database.setStore(App::getStorageFile());
+ }
+
+commit d7354bc14b3a1d17960cfc63a11d4bb1f5187703
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 13:53:21 2019 -0500
+
+    Bake in first leaf.
+
+diff --git a/main.cpp b/main.cpp
+index 3c88265..3ce6d7e 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -9,9 +9,8 @@
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+ #define CHANGE_DATABASE_TO_REFERENCE 0
+ #define INITIALIZE_REFERENCE 0
+-#define ADD_DATABASE_PARAMETER 0
+-#define PASS_DATABASE_TO_UI 0
+-#define CREATE_DATABASE_IN_APP 1
++#define ADD_DATABASE_PARAMETER 1
++#define PASS_DATABASE_TO_UI 1
+ 
+ using std::vector;
+ using std::string;
+@@ -86,9 +85,7 @@ class App {
+     }
+ 
+   private:
+-#if CREATE_DATABASE_IN_APP
+     FileDB database;
+-#endif
+     UI ui;
+     static inline string store_path;
+ };
+
+commit a04587dc4576efbbfd8df6ee4eadffb8f5a1ddd8
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 13:56:37 2019 -0500
+
+    Bake in flag.
+
+diff --git a/main.cpp b/main.cpp
+index 3ce6d7e..979f30a 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -8,9 +8,7 @@
+ 
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+ #define CHANGE_DATABASE_TO_REFERENCE 0
+-#define INITIALIZE_REFERENCE 0
+-#define ADD_DATABASE_PARAMETER 1
+-#define PASS_DATABASE_TO_UI 1
++#define INITIALIZE_REFERENCE 1
+ 
+ using std::vector;
+ using std::string;
+@@ -20,11 +18,7 @@ using std::cerr;
+ 
+ class UI {
+   public:
+-#if !ADD_DATABASE_PARAMETER
+-    UI();
+-#else
+     UI(FileDB &);
+-#endif
+ 
+     void showLogin()
+     {
+@@ -62,12 +56,10 @@ class UI {
+ 
+ class App {
+   public:
+-#if PASS_DATABASE_TO_UI
+     App()
+     : ui(database)
+     {
+     }
+-#endif
+ 
+     void launch()
+     {
+@@ -109,11 +101,7 @@ class Launcher {
+ 
+ 
+ 
+-#if !ADD_DATABASE_PARAMETER
+-UI::UI()
+-#else
+ UI::UI(FileDB &database)
+-#endif
+ #if INITIALIZE_REFERENCE
+ : database(database)
+ #endif
+
+commit 761c1dd4108ef82309a6237c608e11d0380a12a4
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 13:57:31 2019 -0500
+
+    Bake in flag.
+
+diff --git a/main.cpp b/main.cpp
+index 979f30a..d93b0e0 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -7,8 +7,7 @@
+ #include "filedb.hpp"
+ 
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+-#define CHANGE_DATABASE_TO_REFERENCE 0
+-#define INITIALIZE_REFERENCE 1
++#define CHANGE_DATABASE_TO_REFERENCE 1
+ 
+ using std::vector;
+ using std::string;
+@@ -102,9 +101,7 @@ class Launcher {
+ 
+ 
+ UI::UI(FileDB &database)
+-#if INITIALIZE_REFERENCE
+ : database(database)
+-#endif
+ {
+   database.setStore(App::getStorageFile());
+ }
+
+commit 352150cb0b33c4e18bef6430f78c24c297ca6ddc
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 13:58:45 2019 -0500
+
+    Bake in flag.
+
+diff --git a/main.cpp b/main.cpp
+index d93b0e0..5623b3a 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -7,7 +7,7 @@
+ #include "filedb.hpp"
+ 
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+-#define CHANGE_DATABASE_TO_REFERENCE 1
++#define CREATE_DATABASE_INTERFACE 1
+ 
+ using std::vector;
+ using std::string;
+@@ -15,6 +15,12 @@ using std::make_unique;
+ using std::cerr;
+ 
+ 
++#if CREATE_DATABASE_INTERFACE
++struct Database {
++};
++#endif
++
++
+ class UI {
+   public:
+     UI(FileDB &);
+@@ -31,11 +37,7 @@ class UI {
+   private:
+     Frame frame;
+ #if !REPLACE_FILEDB_WITH_DATABASE_INTERFACE
+-#if !CHANGE_DATABASE_TO_REFERENCE
+-    FileDB database;
+-#else
+     FileDB &database;
+-#endif
+ #else
+     Database &database;
+ #endif
+
+commit 225bdb1dd1d1a917229f4d6de025021e80499186
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 14:00:07 2019 -0500
+
+    Bake in flag.
+
+diff --git a/main.cpp b/main.cpp
+index 5623b3a..7e846ca 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -7,7 +7,6 @@
+ #include "filedb.hpp"
+ 
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+-#define CREATE_DATABASE_INTERFACE 1
+ 
+ using std::vector;
+ using std::string;
+@@ -15,10 +14,8 @@ using std::make_unique;
+ using std::cerr;
+ 
+ 
+-#if CREATE_DATABASE_INTERFACE
+ struct Database {
+ };
+-#endif
+ 
+ 
+ class UI {
+
+commit 5c794e36c0399a1439660b499b5d0cabe6dfe068
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 19:28:20 2019 -0500
+
+    Added flag.
+
+diff --git a/main.cpp b/main.cpp
+index 7e846ca..df52135 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -7,6 +7,7 @@
+ #include "filedb.hpp"
+ 
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
++#define ADD_LOAD_METHOD_TO_DATABASE 1
+ 
+ using std::vector;
+ using std::string;
+@@ -15,6 +16,9 @@ using std::cerr;
+ 
+ 
+ struct Database {
++#if ADD_LOAD_METHOD_TO_DATABASE
++  virtual std::vector<std::string> load(const std::string &/*name*/) = 0;
++#endif
+ };
+ 
+ 
+
+commit 8dfb477788f86ea27abb1d85e052b3341cc6d6d9
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 19:28:41 2019 -0500
+
+    Baked-in flag.
+
+diff --git a/main.cpp b/main.cpp
+index df52135..7908064 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -7,7 +7,6 @@
+ #include "filedb.hpp"
+ 
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+-#define ADD_LOAD_METHOD_TO_DATABASE 1
+ 
+ using std::vector;
+ using std::string;
+@@ -16,9 +15,7 @@ using std::cerr;
+ 
+ 
+ struct Database {
+-#if ADD_LOAD_METHOD_TO_DATABASE
+   virtual std::vector<std::string> load(const std::string &/*name*/) = 0;
+-#endif
+ };
+ 
+ 
+
+commit fe6550def8299fc8412393f53092315af11cdca7
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 19:38:53 2019 -0500
+
+    Add flag.
+
+diff --git a/main.cpp b/main.cpp
+index 7908064..f725a70 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -7,6 +7,7 @@
+ #include "filedb.hpp"
+ 
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
++#define CHANGE_PARAMETER_TO_ADAPTER 0
+ 
+ using std::vector;
+ using std::string;
+@@ -100,7 +101,11 @@ class Launcher {
+ 
+ 
+ 
++#if !CHANGE_PARAMETER_TO_ADAPTER
+ UI::UI(FileDB &database)
++#else
++UI::UI(FileDBAdapter &database)
++#endif
+ : database(database)
+ {
+   database.setStore(App::getStorageFile());
+
+commit 1798b2d203fddab3e0998c6cc60408cb3f53a24f
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 19:39:45 2019 -0500
+
+    Added flag.
+
+diff --git a/main.cpp b/main.cpp
+index f725a70..102ccfe 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -8,6 +8,7 @@
+ 
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+ #define CHANGE_PARAMETER_TO_ADAPTER 0
++#define CREATE_ADAPTER 1
+ 
+ using std::vector;
+ using std::string;
+@@ -20,6 +21,12 @@ struct Database {
+ };
+ 
+ 
++#if CREATE_ADAPTER
++struct FileDBAdapter {
++};
++#endif
++
++
+ class UI {
+   public:
+     UI(FileDB &);
+
+commit f6c5e057063561bed5f059382b3e640186c31a28
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 19:40:07 2019 -0500
+
+    Baked in flag.
+
+diff --git a/main.cpp b/main.cpp
+index 102ccfe..54949ea 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -8,7 +8,6 @@
+ 
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+ #define CHANGE_PARAMETER_TO_ADAPTER 0
+-#define CREATE_ADAPTER 1
+ 
+ using std::vector;
+ using std::string;
+@@ -21,10 +20,8 @@ struct Database {
+ };
+ 
+ 
+-#if CREATE_ADAPTER
+ struct FileDBAdapter {
+ };
+-#endif
+ 
+ 
+ class UI {
+
+commit abbddea487b4a784ff7d00ed1c686c6711aafb37
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 19:41:14 2019 -0500
+
+    Extend flag usage.
+
+diff --git a/main.cpp b/main.cpp
+index 54949ea..c773da5 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -26,7 +26,11 @@ struct FileDBAdapter {
+ 
+ class UI {
+   public:
++#if !CHANGE_PARAMETER_TO_ADAPTER
+     UI(FileDB &);
++#else
++    UI(FileDBAdapter &);
++#endif
+ 
+     void showLogin()
+     {
+
+commit 36dc97551cef768a57f805dedc7e00ecaff7bd5c
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 19:44:50 2019 -0500
+
+    Add flag.
+
+diff --git a/main.cpp b/main.cpp
+index c773da5..9881ca4 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -8,6 +8,8 @@
+ 
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+ #define CHANGE_PARAMETER_TO_ADAPTER 0
++#define PASS_ADAPTER 0
++#define MAKE_ADAPTER_DERIVE_FROM_DATABASE 1
+ 
+ using std::vector;
+ using std::string;
+@@ -20,8 +22,13 @@ struct Database {
+ };
+ 
+ 
++#if !MAKE_ADAPTER_DERIVE_FROM_DATABASE
+ struct FileDBAdapter {
+ };
++#else
++struct FileDBAdapter : Database {
++};
++#endif
+ 
+ 
+ class UI {
+@@ -65,7 +72,11 @@ class UI {
+ class App {
+   public:
+     App()
++#if !PASS_ADAPTER
+     : ui(database)
++#else
++    : ui(database_adapter)
++#endif
+     {
+     }
+ 
+@@ -86,6 +97,9 @@ class App {
+ 
+   private:
+     FileDB database;
++#if PASS_ADAPTER
++    FileDBAdapter database_adapter;
++#endif
+     UI ui;
+     static inline string store_path;
+ };
+
+commit 3645054c56b912ac49f5c8f5c9548ada8da90837
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 19:45:09 2019 -0500
+
+    Bake in flag.
+
+diff --git a/main.cpp b/main.cpp
+index 9881ca4..71ec05e 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -9,7 +9,6 @@
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+ #define CHANGE_PARAMETER_TO_ADAPTER 0
+ #define PASS_ADAPTER 0
+-#define MAKE_ADAPTER_DERIVE_FROM_DATABASE 1
+ 
+ using std::vector;
+ using std::string;
+@@ -22,13 +21,8 @@ struct Database {
+ };
+ 
+ 
+-#if !MAKE_ADAPTER_DERIVE_FROM_DATABASE
+-struct FileDBAdapter {
+-};
+-#else
+ struct FileDBAdapter : Database {
+ };
+-#endif
+ 
+ 
+ class UI {
+
+commit 6f9e400316c5693adc3beaa6f9c18c3d609fd372
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 19:46:25 2019 -0500
+
+    Add flag.
+
+diff --git a/main.cpp b/main.cpp
+index 71ec05e..f692425 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -9,6 +9,7 @@
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+ #define CHANGE_PARAMETER_TO_ADAPTER 0
+ #define PASS_ADAPTER 0
++#define ADD_LOAD_METHOD_TO_ADAPTER 0
+ 
+ using std::vector;
+ using std::string;
+@@ -22,6 +23,12 @@ struct Database {
+ 
+ 
+ struct FileDBAdapter : Database {
++#if ADD_LOAD_METHOD_TO_ADAPTER
++  std::vector<std::string> load(const std::string &/*name*/) override
++  {
++    return file_db.load(name);
++  }
++#endif
+ };
+ 
+ 
+
+commit 8f69074c308578484b3820f15abe03892b6e30e5
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 19:48:26 2019 -0500
+
+    Add flag.
+
+diff --git a/main.cpp b/main.cpp
+index f692425..5a5a1aa 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -10,6 +10,7 @@
+ #define CHANGE_PARAMETER_TO_ADAPTER 0
+ #define PASS_ADAPTER 0
+ #define ADD_LOAD_METHOD_TO_ADAPTER 0
++#define ADD_FILEDB_MEMBER_TO_ADAPTER 1
+ 
+ using std::vector;
+ using std::string;
+@@ -23,6 +24,10 @@ struct Database {
+ 
+ 
+ struct FileDBAdapter : Database {
++#if ADD_FILEDB_MEMBER_TO_ADAPTER
++  FileDB &file_db;
++#endif
++
+ #if ADD_LOAD_METHOD_TO_ADAPTER
+   std::vector<std::string> load(const std::string &/*name*/) override
+   {
+@@ -99,7 +104,11 @@ class App {
+   private:
+     FileDB database;
+ #if PASS_ADAPTER
++#if !ADD_FILEDB_MEMBER_TO_ADAPTER
+     FileDBAdapter database_adapter;
++#else
++    FileDBAdapter database_adapter{database};
++#endif
+ #endif
+     UI ui;
+     static inline string store_path;
+
+commit 737cd2c00b44579a5379b683f38f8181f361d32e
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 19:48:59 2019 -0500
+
+    Bake in flag.
+
+diff --git a/main.cpp b/main.cpp
+index 5a5a1aa..f21c33b 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -10,7 +10,6 @@
+ #define CHANGE_PARAMETER_TO_ADAPTER 0
+ #define PASS_ADAPTER 0
+ #define ADD_LOAD_METHOD_TO_ADAPTER 0
+-#define ADD_FILEDB_MEMBER_TO_ADAPTER 1
+ 
+ using std::vector;
+ using std::string;
+@@ -24,9 +23,7 @@ struct Database {
+ 
+ 
+ struct FileDBAdapter : Database {
+-#if ADD_FILEDB_MEMBER_TO_ADAPTER
+   FileDB &file_db;
+-#endif
+ 
+ #if ADD_LOAD_METHOD_TO_ADAPTER
+   std::vector<std::string> load(const std::string &/*name*/) override
+@@ -104,11 +101,7 @@ class App {
+   private:
+     FileDB database;
+ #if PASS_ADAPTER
+-#if !ADD_FILEDB_MEMBER_TO_ADAPTER
+-    FileDBAdapter database_adapter;
+-#else
+     FileDBAdapter database_adapter{database};
+-#endif
+ #endif
+     UI ui;
+     static inline string store_path;
+
+commit 1d1bb08bb746a0ee70a0c26b31af7dc7bfc2a627
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 19:49:52 2019 -0500
+
+    Extend flag usage.
+
+diff --git a/main.cpp b/main.cpp
+index f21c33b..ca23450 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -9,7 +9,7 @@
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+ #define CHANGE_PARAMETER_TO_ADAPTER 0
+ #define PASS_ADAPTER 0
+-#define ADD_LOAD_METHOD_TO_ADAPTER 0
++#define ADD_LOAD_METHOD_TO_ADAPTER 1
+ 
+ using std::vector;
+ using std::string;
+@@ -26,7 +26,7 @@ struct FileDBAdapter : Database {
+   FileDB &file_db;
+ 
+ #if ADD_LOAD_METHOD_TO_ADAPTER
+-  std::vector<std::string> load(const std::string &/*name*/) override
++  std::vector<std::string> load(const std::string &name) override
+   {
+     return file_db.load(name);
+   }
+
+commit dc2fcc72adb2fb59962dad5651ee5f4cf17a2ca0
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 19:50:22 2019 -0500
+
+    Bake in a flag.
+
+diff --git a/main.cpp b/main.cpp
+index ca23450..b5d1267 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -9,7 +9,6 @@
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+ #define CHANGE_PARAMETER_TO_ADAPTER 0
+ #define PASS_ADAPTER 0
+-#define ADD_LOAD_METHOD_TO_ADAPTER 1
+ 
+ using std::vector;
+ using std::string;
+@@ -25,12 +24,10 @@ struct Database {
+ struct FileDBAdapter : Database {
+   FileDB &file_db;
+ 
+-#if ADD_LOAD_METHOD_TO_ADAPTER
+   std::vector<std::string> load(const std::string &name) override
+   {
+     return file_db.load(name);
+   }
+-#endif
+ };
+ 
+ 
+
+commit ccb7597c84ceffce2eb2af6c2d2cd0e8c69b0d63
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 19:53:27 2019 -0500
+
+    Add flag.
+
+diff --git a/main.cpp b/main.cpp
+index b5d1267..8a937b5 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -9,6 +9,7 @@
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+ #define CHANGE_PARAMETER_TO_ADAPTER 0
+ #define PASS_ADAPTER 0
++#define CREATE_ADAPTER_CONSTRUCTOR 1
+ 
+ using std::vector;
+ using std::string;
+@@ -24,6 +25,13 @@ struct Database {
+ struct FileDBAdapter : Database {
+   FileDB &file_db;
+ 
++#if CREATE_ADAPTER_CONSTRUCTOR
++  FileDBAdapter(FileDB &file_db)
++  : file_db(file_db)
++  {
++  }
++#endif
++
+   std::vector<std::string> load(const std::string &name) override
+   {
+     return file_db.load(name);
+
+commit 409053a071a07d4a7b505896acfed065534491bc
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 19:53:55 2019 -0500
+
+    Bake in flag.
+
+diff --git a/main.cpp b/main.cpp
+index 8a937b5..3c01484 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -9,7 +9,6 @@
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+ #define CHANGE_PARAMETER_TO_ADAPTER 0
+ #define PASS_ADAPTER 0
+-#define CREATE_ADAPTER_CONSTRUCTOR 1
+ 
+ using std::vector;
+ using std::string;
+@@ -25,12 +24,10 @@ struct Database {
+ struct FileDBAdapter : Database {
+   FileDB &file_db;
+ 
+-#if CREATE_ADAPTER_CONSTRUCTOR
+   FileDBAdapter(FileDB &file_db)
+   : file_db(file_db)
+   {
+   }
+-#endif
+ 
+   std::vector<std::string> load(const std::string &name) override
+   {
+
+commit c6e28c9a28bfc7ea56e609a3992365bc90924275
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 19:56:26 2019 -0500
+
+    Add flag.
+
+diff --git a/main.cpp b/main.cpp
+index 3c01484..2d3bbea 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -9,6 +9,7 @@
+ #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+ #define CHANGE_PARAMETER_TO_ADAPTER 0
+ #define PASS_ADAPTER 0
++#define MOVE_SET_STORE_CALL 1
+ 
+ using std::vector;
+ using std::string;
+@@ -83,6 +84,9 @@ class App {
+     : ui(database_adapter)
+ #endif
+     {
++#if MOVE_SET_STORE_CALL
++      database.setStore(App::getStorageFile());
++#endif
+     }
+ 
+     void launch()
+@@ -135,7 +139,9 @@ UI::UI(FileDBAdapter &database)
+ #endif
+ : database(database)
+ {
++#if !MOVE_SET_STORE_CALL
+   database.setStore(App::getStorageFile());
++#endif
+ }
+ 
+ 
+
+commit ba6d74339c890441e969afde54de426c346ca49d
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 19:56:49 2019 -0500
+
+    Bake in flag.
+
+diff --git a/main.cpp b/main.cpp
+index 2d3bbea..fb9bb1a 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -6,10 +6,9 @@
+ #include "applicationexception.hpp"
+ #include "filedb.hpp"
+ 
+-#define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
+-#define CHANGE_PARAMETER_TO_ADAPTER 0
+-#define PASS_ADAPTER 0
+-#define MOVE_SET_STORE_CALL 1
++#define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 1
++#define CHANGE_PARAMETER_TO_ADAPTER 1
++#define PASS_ADAPTER 1
+ 
+ using std::vector;
+ using std::string;
+@@ -84,9 +83,7 @@ class App {
+     : ui(database_adapter)
+ #endif
+     {
+-#if MOVE_SET_STORE_CALL
+       database.setStore(App::getStorageFile());
+-#endif
+     }
+ 
+     void launch()
+@@ -139,9 +136,6 @@ UI::UI(FileDBAdapter &database)
+ #endif
+ : database(database)
+ {
+-#if !MOVE_SET_STORE_CALL
+-  database.setStore(App::getStorageFile());
+-#endif
+ }
+ 
+ 
+
+commit 5ba52aa66da70faf5a726e56814659da79408ec6
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 20:00:45 2019 -0500
+
+    Bake in flags.
+
+diff --git a/main.cpp b/main.cpp
+index fb9bb1a..95157fe 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -6,10 +6,6 @@
+ #include "applicationexception.hpp"
+ #include "filedb.hpp"
+ 
+-#define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 1
+-#define CHANGE_PARAMETER_TO_ADAPTER 1
+-#define PASS_ADAPTER 1
+-
+ using std::vector;
+ using std::string;
+ using std::make_unique;
+@@ -38,11 +34,7 @@ struct FileDBAdapter : Database {
+ 
+ class UI {
+   public:
+-#if !CHANGE_PARAMETER_TO_ADAPTER
+-    UI(FileDB &);
+-#else
+-    UI(FileDBAdapter &);
+-#endif
++    UI(Database &);
+ 
+     void showLogin()
+     {
+@@ -55,11 +47,7 @@ class UI {
+ 
+   private:
+     Frame frame;
+-#if !REPLACE_FILEDB_WITH_DATABASE_INTERFACE
+-    FileDB &database;
+-#else
+     Database &database;
+-#endif
+ 
+     void addLoginSelector(const vector<string> &users)
+     {
+
+commit 0b8e8a170355341c21d9ea730fc37053f41d8d1f
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 20:06:17 2019 -0500
+
+    Bake in flag.
+
+diff --git a/main.cpp b/main.cpp
+index 95157fe..36c4535 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -34,7 +34,7 @@ struct FileDBAdapter : Database {
+ 
+ class UI {
+   public:
+-    UI(Database &);
++    UI(FileDBAdapter &);
+ 
+     void showLogin()
+     {
+@@ -65,11 +65,7 @@ class UI {
+ class App {
+   public:
+     App()
+-#if !PASS_ADAPTER
+-    : ui(database)
+-#else
+     : ui(database_adapter)
+-#endif
+     {
+       database.setStore(App::getStorageFile());
+     }
+@@ -91,9 +87,7 @@ class App {
+ 
+   private:
+     FileDB database;
+-#if PASS_ADAPTER
+     FileDBAdapter database_adapter{database};
+-#endif
+     UI ui;
+     static inline string store_path;
+ };
+@@ -117,11 +111,7 @@ class Launcher {
+ 
+ 
+ 
+-#if !CHANGE_PARAMETER_TO_ADAPTER
+-UI::UI(FileDB &database)
+-#else
+ UI::UI(FileDBAdapter &database)
+-#endif
+ : database(database)
+ {
+ }
+
+commit 0b987876d37db48b7d3fe289bf7597f3b220db05
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 20:06:46 2019 -0500
+
+    Generalize
+
+diff --git a/main.cpp b/main.cpp
+index 36c4535..70f4bbd 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -34,7 +34,7 @@ struct FileDBAdapter : Database {
+ 
+ class UI {
+   public:
+-    UI(FileDBAdapter &);
++    UI(Database &);
+ 
+     void showLogin()
+     {
+@@ -111,7 +111,7 @@ class Launcher {
+ 
+ 
+ 
+-UI::UI(FileDBAdapter &database)
++UI::UI(Database &database)
+ : database(database)
+ {
+ }
+
+commit 12861c247ab927c88201b1baec8b7421f5abb026
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 20:27:41 2019 -0500
+
+    Move member.
+
+diff --git a/main.cpp b/main.cpp
+index 70f4bbd..4220d06 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -64,8 +64,9 @@ class UI {
+ 
+ class App {
+   public:
+-    App()
+-    : ui(database_adapter)
++    App(FileDB &database)
++    : database_adapter(database),
++      ui(database_adapter)
+     {
+       database.setStore(App::getStorageFile());
+     }
+@@ -86,8 +87,7 @@ class App {
+     }
+ 
+   private:
+-    FileDB database;
+-    FileDBAdapter database_adapter{database};
++    FileDBAdapter database_adapter;
+     UI ui;
+     static inline string store_path;
+ };
+@@ -99,7 +99,8 @@ class Launcher {
+     {
+       try {
+         App::setStorageFile(argv[0]);
+-        App app;
++        FileDB database;
++        App app(database);
+         app.launch();
+       }
+       catch (ApplicationException &e) {
+
+commit 1c3dd16f09b4d8107a5505275ef9c38635a94569
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 20:28:25 2019 -0500
+
+    Move call.
+
+diff --git a/main.cpp b/main.cpp
+index 4220d06..99f5fae 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -68,7 +68,6 @@ class App {
+     : database_adapter(database),
+       ui(database_adapter)
+     {
+-      database.setStore(App::getStorageFile());
+     }
+ 
+     void launch()
+@@ -100,6 +99,7 @@ class Launcher {
+       try {
+         App::setStorageFile(argv[0]);
+         FileDB database;
++        database.setStore(App::getStorageFile());
+         App app(database);
+         app.launch();
+       }
+
+commit 7271556a3c66103bffb609ec6b029af8939a0d7e
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 20:30:13 2019 -0500
+
+    Move data member.
+
+diff --git a/main.cpp b/main.cpp
+index 99f5fae..e88af9c 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -64,9 +64,8 @@ class UI {
+ 
+ class App {
+   public:
+-    App(FileDB &database)
+-    : database_adapter(database),
+-      ui(database_adapter)
++    App(FileDBAdapter &database_adapter)
++    : ui(database_adapter)
+     {
+     }
+ 
+@@ -86,7 +85,6 @@ class App {
+     }
+ 
+   private:
+-    FileDBAdapter database_adapter;
+     UI ui;
+     static inline string store_path;
+ };
+@@ -100,7 +98,8 @@ class Launcher {
+         App::setStorageFile(argv[0]);
+         FileDB database;
+         database.setStore(App::getStorageFile());
+-        App app(database);
++        FileDBAdapter database_adapter(database);
++        App app(database_adapter);
+         app.launch();
+       }
+       catch (ApplicationException &e) {
+
+commit 07ad3c0290f4792d672f80472b2765c75b126d02
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 20:30:37 2019 -0500
+
+    Generalize.
+
+diff --git a/main.cpp b/main.cpp
+index e88af9c..b3db6b4 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -64,8 +64,8 @@ class UI {
+ 
+ class App {
+   public:
+-    App(FileDBAdapter &database_adapter)
+-    : ui(database_adapter)
++    App(Database &database)
++    : ui(database)
+     {
+     }
+ 
+
+commit 83becd067a4381258a3bbf118129c8c2bc5cc6bb
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 20:32:41 2019 -0500
+
+    Slide statements.
+
+diff --git a/main.cpp b/main.cpp
+index b3db6b4..8cd4f37 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -95,8 +95,8 @@ class Launcher {
+     static void main(const vector<string> &argv)
+     {
+       try {
+-        App::setStorageFile(argv[0]);
+         FileDB database;
++        App::setStorageFile(argv[0]);
+         database.setStore(App::getStorageFile());
+         FileDBAdapter database_adapter(database);
+         App app(database_adapter);
+
+commit b0da9f1df5673d7f6fdac10d5a14afb6d34d611a
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 20:34:20 2019 -0500
+
+    Simplify
+
+diff --git a/main.cpp b/main.cpp
+index 8cd4f37..2ebfd80 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -97,7 +97,7 @@ class Launcher {
+       try {
+         FileDB database;
+         App::setStorageFile(argv[0]);
+-        database.setStore(App::getStorageFile());
++        database.setStore(argv[0]);
+         FileDBAdapter database_adapter(database);
+         App app(database_adapter);
+         app.launch();
+
+commit c58b5bc19e28daa1452f0e026de70874a39f6e70
+Author: vaughn <vaughncato@gmail.com>
+Date:   Sat Nov 23 20:36:15 2019 -0500
+
+    Remove dead code.
+
+diff --git a/main.cpp b/main.cpp
+index 2ebfd80..7d22c6c 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -74,19 +74,8 @@ class App {
+       ui.showLogin();
+     }
+ 
+-    static const string& getStorageFile()
+-    {
+-      return store_path;
+-    }
+-
+-    static void setStorageFile(const string &store_path)
+-    {
+-      App::store_path = store_path;
+-    }
+-
+   private:
+     UI ui;
+-    static inline string store_path;
+ };
+ 
+ 
+@@ -96,7 +85,6 @@ class Launcher {
+     {
+       try {
+         FileDB database;
+-        App::setStorageFile(argv[0]);
+         database.setStore(argv[0]);
+         FileDBAdapter database_adapter(database);
+         App app(database_adapter);
