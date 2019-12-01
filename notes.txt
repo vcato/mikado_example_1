@@ -1,8 +1,102 @@
-We start with our Mikado goal of replacing the use of the concrete class FileDB with the use of a database interface.  We'll create a feature flag to represent this goal:
+In this example, we'll be started with the following code:
+
+ #include <vector>
+ #include <string>
+ #include <iostream>
+ #include "gui.hpp"
+ #include "applicationexception.hpp"
+ #include "filedb.hpp"
+
+ using std::vector;
+ using std::string;
+ using std::cerr;
+
+
+ class UI {
+   public:
+     UI();
+
+     void showLogin()
+     {
+       vector<string> users = database.load("users");
+       addLoginSelector(users);
+       addButtons();
+       frame.setSize(800, 600);
+       frame.setVisible(true);
+     }
+
+   private:
+     Frame frame;
+     FileDB database;
+
+     void addLoginSelector(const vector<string> &users);
+     void addButtons();
+ };
+
+
+ class App {
+   public:
+     void launch()
+     {
+       ui.showLogin();
+     }
+
+     static const string& getStorageFile()
+     {
+       return store_path;
+     }
+
+     static void setStorageFile(const string &store_path)
+     {
+       App::store_path = store_path;
+     }
+
+   private:
+     UI ui;
+     static inline string store_path;
+ };
+
+
+ class Launcher {
+   public:
+     static void main(const vector<string> &args)
+     {
+       try {
+         App::setStorageFile(args[0]);
+         App app;
+         app.launch();
+       }
+       catch (ApplicationException &e) {
+         cerr << "Could not start application.\n";
+         e.printStackTrace();
+       }
+     }
+ };
+
+
+
+ UI::UI()
+ {
+   database.setStore(App::getStorageFile());
+ }
+
+
+
+ int main(int argc, char **argv)
+ {
+   Launcher::main(vector<string>(argv+1, argv+argc));
+ }
+
+
+Our objective is to replace the use of the concrete FileDB with an abstraction
+that will let us more easily use other kinds of databases.
+We start with our Mikado goal of replacing the use of the concrete class FileDB
+with the use of a Database interface.  Using the feature-flag approach, we
+create a feature flag to represent this goal:
 
  #include "applicationexception.hpp"
  #include "filedb.hpp"
- 
+
 +#define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
 +
 
@@ -20,17 +114,18 @@ And we'll just naively replace the FileDB with a Database reference.
 +#else
 +    Database &database;
 +#endif
- 
+
 
 One of the first things that is clear is that this isn't going to work without
 the database being a reference or a pointer. The simplest thing to do is
-to make it be a reference, so we'll make that be a sub-goal.
+to make it be a reference. We'll make that be a sub-goal and introduce
+a new flag:
 
  #include "filedb.hpp"
- 
+
  #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
 +#define CHANGE_DATABASE_TO_REFERENCE 0
- 
+
  .
  .
  .
@@ -52,29 +147,26 @@ to make it be a reference, so we'll make that be a sub-goal.
      Database &database;
  #endif
 
-This leads to a cascade of small changes.  First, we have to
-initialize the reference, and to initialize the reference we have to have
-something to initialize it with, so we need to have a parameter to the
-UI constructor, which means we'll need to pass something to the constructor,
-which means we'll need the FileDB to exist in the App.  Since we're following
-the Mikado process strictly for this example, we'll make flags for each of
-those steps.
 
- 
+This leads to a cascade of small changes.  First, we have to initialize the
+reference, and to initialize the reference we have to have something to
+initialize it with, so we need to have a parameter to the UI constructor, which
+means we'll need to pass something to the constructor, which means we'll need
+the FileDB to exist in the App.  All of these steps seem like part of the same
+CHANGE_DATABASE_TO_REFERENCE step, so we'll extend the usage of our flag
+instead of creating a new one:
+
+
  #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
  #define CHANGE_DATABASE_TO_REFERENCE 0
-+#define INITIALIZE_REFERENCE 0
-+#define ADD_DATABASE_PARAMETER 0
-+#define PASS_DATABASE_TO_UI 0
-+#define CREATE_DATABASE_IN_APP 1
- 
+
  .
  .
  .
- 
+
  class UI {
    public:
-+#if !ADD_DATABASE_PARAMETER
++#if !CHANGE_DATABASE_TO_REFERENCE
      UI();
 +#else
 +    UI(FileDB &);
@@ -91,22 +183,17 @@ those steps.
 
  class App {
    public:
-+#if PASS_DATABASE_TO_UI
-+    App()
-+    : ui(database)
-+    {
-+    }
-+#endif
-
     .
     .
     .
 
    private:
-+#if CREATE_DATABASE_IN_APP
-+    FileDB database;
-+#endif
++#if !CHANGE_DATABASE_TO_REFERENCE
      UI ui;
++#else
++    FileDB database;
++    UI ui{database};
++#endif
      static inline string store_path;
  };
 
@@ -114,63 +201,34 @@ those steps.
  .
  .
 
-+#if !ADD_DATABASE_PARAMETER
++#if !CHANGE_DATABASE_TO_REFERENCE
  UI::UI()
 +#else
 +UI::UI(FileDB &database)
-+#endif
-+#if INITIALIZE_REFERENCE
 +: database(database)
 +#endif
  {
    database.setStore(App::getStorageFile());
  }
 
-We can enable CREATE_DATABASE_IN_APP without introducting any compilation
-errors and without breaking anything. So we go ahead and bake in the
-CREATE_DATABASE_IN_APP flag.
 
- #define INITIALIZE_REFERENCE 0
- #define ADD_DATABASE_PARAMETER 0
- #define PASS_DATABASE_TO_UI 0
--#define CREATE_DATABASE_IN_APP 1
- 
- .
- .
- .
-
- class App {
-   .
-   .
-   .
- 
-   private:
--#if CREATE_DATABASE_IN_APP
-     FileDB database;
--#endif
-     UI ui;
-     static inline string store_path;
- };
-
-Going up the list of flags, we find that enabling ADD_DATABASE_PARAMETER,
-CREATE_DATABASE_IN_APP, INITIALIZE_REFERENCE, and
-CHANGE_DATABASE_TO_REFERENCE work as well:
+We can now enable CHANGE_DATABASE_TO_REFERENCE without introducting any
+compilation errors and without breaking anything.
+This seems like a complete change, so we'll go ahead and bake in
+CHANGE_DATABASE_TO_REFERENCE.
 
  #include "filedb.hpp"
- 
+
  #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
 -#define CHANGE_DATABASE_TO_REFERENCE 1
--#define INITIALIZE_REFERENCE 1
--#define ADD_DATABASE_PARAMETER 1
--#define PASS_DATABASE_TO_UI 1
- 
+
  .
  .
  .
 
  class UI {
    public:
--#if !ADD_DATABASE_PARAMETER
+-#if !CHANGE_DATABASE_TO_REFERENCE
 -    UI();
 -#else
      UI(FileDB &);
@@ -193,72 +251,79 @@ CHANGE_DATABASE_TO_REFERENCE work as well:
  #endif
 
  };
- 
- .
- .
- .
- 
- class App {
-   public:
--#if PASS_DATABASE_TO_UI
-     App()
-     : ui(database)
-     {
-     }
--#endif
 
+ .
+ .
+ .
+
+ class App {
    .
    .
    .
+
+   private:
+-#if !CHANGE_DATABASE_TO_REFERENCE
+-    UI ui;
+-#else
+     FileDB database;
+     UI ui{database};
+-#endif
+     UI ui;
+     static inline string store_path;
  };
- 
- .
- .
- .
- 
--#if !ADD_DATABASE_PARAMETER
+
+
+-#if !CHANGE_DATABASE_TO_REFERENCE
 -UI::UI()
 -#else
  UI::UI(FileDB &database)
--#endif
--#if INITIALIZE_REFERENCE
  : database(database)
 -#endif
+ {
+   database.setStore(App::getStorageFile());
+ }
 
 
-If we try to enable the one remaining flag,
-REPLACE_FILEDB_WITH_DATABASE_INTERFACE, we now see that the main issue is that
-we don't have a Database interface class at all.  So we'll create that:
- 
- 
+If we try to enable REPLACE_FILEDB_WITH_DATABASE_INTERFACE, we now see that the
+main issue is that we don't have a Database interface class at all.  So we'll
+create that, extending the use of the REPLACE_FILEDB_WITH_DATABASE_INTERFACE
+flag.
+
+
++#if REPLACE_FILEDB_WITH_DATABASE_INTERFACE
 +struct Database {
 +};
++#endif
 
 
 If we enable REPLACE_FILEDB_WITH_DATABASE_INTERFACE, we see that the next
 issue is that we don't have a load() method, so we'll add that:
 
+
+ #if REPLACE_FILEDB_WITH_DATABASE_INTERFACE
  struct Database {
 +  virtual vector<string> load(const string &name) = 0;
  };
- 
- 
+ #endif
+
 
 Now, if we enable REPLACE_FILEDB_WITH_DATABASE_INTERFACE, the main issue
 is that our FileDB doesn't derive from Database.  We could think about
 making FileDB derive from Database, but since FileDB is an external dependency,
-we're going to need to do something else.  The simplest solution is to use an
-adapter:
+we're going to need to try something else.  The simplest solution is to use an
+adapter.  This seems like a separate step from
+REPLACE_FILEDB_WITH_DATABASE_INTERFACE, so we introduce a new flag:
+
 
  #include "filedb.hpp"
- 
+
  #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
 +#define CHANGE_PARAMETER_TO_ADAPTER 0
- 
+
  .
  .
  .
- 
+
  class UI {
    public:
 +#if !CHANGE_PARAMETER_TO_ADAPTER
@@ -274,7 +339,7 @@ adapter:
  .
  .
  .
- 
+
 +#if !CHANGE_PARAMETER_TO_ADAPTER
  UI::UI(FileDB &database)
 +#else
@@ -286,48 +351,37 @@ adapter:
  }
 
 
-And to make that compile, we'll need to create the adapter:
- 
- 
+To make this work, we'll need to create the adapter:
+
+
+ #if CHANGE_PARAMETER_TO_ADAPTER
 +struct FileDBAdapter {
 +};
+ #endif
 
-
- class UI {
-   .
-   .
-   .
- };
 
 If we try to enable CHANGE_PARAMETER_TO_ADAPTER, we see that we're not
-actually passing an adapter for the database parameter.
- 
- #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
- #define CHANGE_PARAMETER_TO_ADAPTER 0
-+#define PASS_ADAPTER 0
- 
- .
- .
- .
+actually passing an adapter for the database parameter, and we don't have
+an adapter to pass, so we add that:
 
  class App {
    public:
      App()
-+#if !PASS_ADAPTER
++#if !CHANGE_PARAMETER_TO_ADAPTER
      : ui(database)
 +#else
 +    : ui(database_adapter)
 +#endif
      {
      }
- 
+
   .
   .
   .
 
    private:
      FileDB database;
-+#if PASS_ADAPTER
++#if CHANGE_PARAMETER_TO_ADAPTER
 +    FileDBAdapter database_adapter;
 +#endif
      UI ui;
@@ -335,44 +389,36 @@ actually passing an adapter for the database parameter.
  };
 
 
-To make PASS_ADAPTER work, we need to make the FileDBAdapter actually derive
-from the Database interface.
- 
- 
--struct FileDBAdapter {
--};
-+struct FileDBAdapter : Database {
-+};
- 
- 
-If we try to enable PASS_ADAPTER, we find that we can't because we haven't
-actually implemented the load() method:
+If we try to enable CHANGE_PARAMETER_TO_ADAPTER, this doesn't work because
+FileDBAdapter doesn't actually derive from the Database interface.
 
- #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
- #define CHANGE_PARAMETER_TO_ADAPTER 0
- #define PASS_ADAPTER 0
-+#define ADD_LOAD_METHOD_TO_ADAPTER 0
- 
- .
- .
- .
- 
+ #if CHANGE_PARAMETER_TO_ADAPTER
+-struct FileDBAdapter {
++struct FileDBAdapter : Database {
+ };
+ #endif
+
+
+If we try to enable CHANGE_PARAMETER_TO_ADAPTER, we find that we can't because
+we haven't actually implemented the load() method:
+
+ #if CHANGE_PARAMETER_TO_ADAPTER
  struct FileDBAdapter : Database {
-+#if ADD_LOAD_METHOD_TO_ADAPTER
 +  vector<string> load(const string &name) override
 +  {
 +    return file_db.load(name);
 +  }
-+#endif
  };
- 
- 
+ #endif
+
+
 If we try to enable ADD_LOAD_METHOD_TO_ADAPTER, we see that we can't because
 we don't have access to the FileDB from the adapter, so we can add that
 as a parameter to the constructor and pass in the parameter when we create
 the App::database_adapter member:
- 
- 
+
+
+ #if CHANGE_PARAMETER_TO_ADAPTER
  struct FileDBAdapter : Database {
 +  FileDB &file_db;
 +
@@ -380,6 +426,7 @@ the App::database_adapter member:
    .
    .
  };
+ #endif
 
  .
  .
@@ -392,66 +439,42 @@ the App::database_adapter member:
 
    private:
      FileDB database;
- #if PASS_ADAPTER
+ #if CHANGE_PARAMETER_TO_ADAPTER
+-    FileDBAdapter database_adapter;
 +    FileDBAdapter database_adapter{database};
  #endif
      UI ui;
      static inline string store_path;
  };
 
-Enabling ADD_LOAD_METHOD_TO_ADAPTER now works, so we can bake it in:
 
- #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
- #define CHANGE_PARAMETER_TO_ADAPTER 0
- #define PASS_ADAPTER 0
--#define ADD_LOAD_METHOD_TO_ADAPTER 1
- 
- .
- .
- .
+If we try to enable CHANGE_PARAMETER_TO_ADAPTER, the compiler warns about a
+missing constructor in FileDBAdapter, so we add that also:
 
+
+ #if CHANGE_PARAMETER_TO_ADAPTER
  struct FileDBAdapter : Database {
    FileDB &file_db;
- 
--#if ADD_LOAD_METHOD_TO_ADAPTER
-   vector<string> load(const string &name) override
-   {
-     return file_db.load(name);
-   }
--#endif
- };
- 
- 
-The compiler warns about a missing constructor in FileDBAdapter, so
-we'll go ahead and add that:
 
- #define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 0
- #define CHANGE_PARAMETER_TO_ADAPTER 0
- #define PASS_ADAPTER 0
- 
- .
- .
- .
-
- struct FileDBAdapter : Database {
-   FileDB &file_db;
- 
 +  FileDBAdapter(FileDB &file_db)
 +  : file_db(file_db)
 +  {
 +  }
 +
 
-If we try to enable PASS_ADAPTER, we see that we can't because it doesn't have
-a setStore() method.  We might be tempted to add this to our FileDBAdapter
-class, but that doesn't seem to match the role of an adapter.  Instead, we can
-move this functionality to App, which still knows the database is a FileDB:
 
- 
+If we try to enable CHANGE_PARAMETER_TO_ADAPTER, we see that we can't because
+it doesn't have a setStore() method.  We might be tempted to add this to our
+FileDBAdapter class, but that doesn't seem to match the role of an adapter.
+Instead, we can move this functionality to App, which still knows the database
+is a FileDB.  We can make this change without having to enable
+CHANGE_PARAMETER_TO_ADAPTER and without introducing any issues.
+
+
  class App {
    public:
      App()
- #if !PASS_ADAPTER
+ #if !CHANGE_PARAMETER_TO_ADAPTER
      : ui(database)
  #else
      : ui(database_adapter)
@@ -464,12 +487,12 @@ move this functionality to App, which still knows the database is a FileDB:
      .
      .
   };
- 
+
  .
  .
  .
 
- #if !PASS_ADAPTER
+ #if !CHANGE_PARAMETER_TO_ADAPTER
  UI::UI(FileDB &database)
  #else
  UI::UI(FileDBAdapter &database)
@@ -478,82 +501,121 @@ move this functionality to App, which still knows the database is a FileDB:
  {
 -  database.setStore(App::getStorageFile());
  }
- 
- 
 
-We now find that all the remaining flags can be enabled without causing
-any issues, so we bake all of this in:
 
- #include "applicationexception.hpp"
- #include "filedb.hpp"
- 
--#define REPLACE_FILEDB_WITH_DATABASE_INTERFACE 1
--#define CHANGE_PARAMETER_TO_ADAPTER 1
--#define PASS_ADAPTER 1
--
+We now find that if we try to enable CHANGE_PARAMETER_TO_ADAPTER, it won't
+work because our database is a FileDB and can't be initialized with a
+FileDBAdapter reference.  However, we already have the
+REPLACE_FILEDB_WITH_DATABASE_INTERFACE flag for changing the database
+to be Database reference though, and if we enable that flag as well, everything
+works.  This now seems like a complete change, so we can bake it all in,
+leaving us with this code:
+
+
  .
  .
  .
- 
+
+ struct Database {
+   virtual vector<string> load(const string &name) = 0;
+ };
+
+
+ struct FileDBAdapter : Database {
+   FileDB &file_db;
+
+   FileDBAdapter(FileDB &file_db)
+   : file_db(file_db)
+   {
+   }
+
+   vector<string> load(const string &name) override
+   {
+     return file_db.load(name);
+   }
+ };
+
+
  class UI {
    public:
--#if !CHANGE_PARAMETER_TO_ADAPTER
--    UI(FileDB &);
--#else
-     UI(FileDBAdapter &);
--#endif
- 
-    .
-    .
-    .
- 
+     UI(FileDBAdapter &database_adapter);
+
+     void showLogin()
+     {
+       vector<string> users = database.load("users");
+       addLoginSelector(users);
+       addButtons();
+       frame.setSize(800, 600);
+       frame.setVisible(true);
+     }
+
    private:
      Frame frame;
--#if !REPLACE_FILEDB_WITH_DATABASE_INTERFACE
--    FileDB &database;
--#else
      Database &database;
--#endif
- 
- .
- .
- .
+
+     void addLoginSelector(const vector<string> &users);
+     void addButtons();
+ };
+
 
  class App {
    public:
      App()
--#if !PASS_ADAPTER
--    : ui(database)
--#else
-     : ui(database_adapter)
--#endif
      {
        database.setStore(App::getStorageFile());
      }
-   .
-   .
-   .
- 
+
+     void launch()
+     {
+       ui.showLogin();
+     }
+
+     static const string& getStorageFile()
+     {
+       return store_path;
+     }
+
+     static void setStorageFile(const string &store_path)
+     {
+       App::store_path = store_path;
+     }
+
    private:
      FileDB database;
--#if PASS_ADAPTER
      FileDBAdapter database_adapter{database};
--#endif
-     UI ui;
+     UI ui{database_adapter};
      static inline string store_path;
  };
 
- .
- .
- .
- 
--#if !CHANGE_PARAMETER_TO_ADAPTER
--UI::UI(FileDB &database)
--#else
- UI::UI(FileDBAdapter &database)
--#endif
- : database(database)
+
+ class Launcher {
+   public:
+     static void main(const vector<string> &args)
+     {
+       try {
+         App::setStorageFile(args[0]);
+         App app;
+         app.launch();
+       }
+       catch (ApplicationException &e) {
+         cerr << "Could not start application.\n";
+         e.printStackTrace();
+       }
+     }
+ };
+
+
+
+ UI::UI(FileDBAdapter &database_adapter)
+ : database(database_adapter)
  {
+ }
+
+
+
+ int main(int argc, char **argv)
+ {
+   Launcher::main(vector<string>(argv+1, argv+argc));
  }
 
 
@@ -565,7 +627,7 @@ Database instead of a FileDBAdapter.
    public:
 -    UI(FileDBAdapter &);
 +    UI(Database &);
- 
+
      .
      .
      .
@@ -574,7 +636,7 @@ Database instead of a FileDBAdapter.
  .
  .
  .
- 
+
 -UI::UI(FileDBAdapter &database)
 +UI::UI(Database &database)
  : database(database)
@@ -582,9 +644,9 @@ Database instead of a FileDBAdapter.
  }
 
 
-We can also see that we can use the adapter to move the FileDB up another level
+Using the same approach as before, we can move the FileDB up another level
 into the Launcher:
- 
+
  class App {
    public:
 -    App()
@@ -614,10 +676,10 @@ into the Launcher:
 
  class Launcher {
    public:
-     static void main(const vector<string> &argv)
+     static void main(const vector<string> &args)
      {
        try {
-         App::setStorageFile(argv[0]);
+         App::setStorageFile(args[0]);
 -        App app;
 +        FileDB database;
 +        database.setStore(App::getStorageFile());
@@ -631,8 +693,8 @@ into the Launcher:
  };
 
 
-This allows us to move the FileDBAdapter up to the Launcher as well:
- 
+This allows us to move the database_adapter up to the Launcher as well:
+
  class App {
    public:
 -    App(FileDB &database)
@@ -642,11 +704,11 @@ This allows us to move the FileDBAdapter up to the Launcher as well:
 +    : ui(database_adapter)
      {
      }
- 
+
    .
    .
    .
- 
+
    private:
 -    FileDBAdapter database_adapter;
      UI ui;
@@ -659,10 +721,10 @@ This allows us to move the FileDBAdapter up to the Launcher as well:
 
  class Launcher {
    public:
-     static void main(const vector<string> &argv)
+     static void main(const vector<string> &args)
      {
        try {
-         App::setStorageFile(argv[0]);
+         App::setStorageFile(args[0]);
          FileDB database;
          database.setStore(App::getStorageFile());
 -        App app{database};
@@ -671,7 +733,7 @@ This allows us to move the FileDBAdapter up to the Launcher as well:
          app.launch();
 
 And we generalize the App constructor:
- 
+
  class App {
    public:
 -    App(FileDBAdapter &database_adapter)
@@ -680,29 +742,33 @@ And we generalize the App constructor:
 +    : ui(database)
      {
      }
- 
 
+
+The code is now looking much like we wanted.  We have a Database abstraction
+and that is being used in as many places as possible, but it looks like
+we may have some unnecessary code in Launcher::main now.
 The calls to setStorageFile and getStorageFile are closely related, so let's
 move them together:
-     static void main(const vector<string> &argv)
+
+     static void main(const vector<string> &args)
      {
        try {
--        App::setStorageFile(argv[0]);
+-        App::setStorageFile(args[0]);
          FileDB database;
-+        App::setStorageFile(argv[0]);
++        App::setStorageFile(args[0]);
          database.setStore(App::getStorageFile());
          FileDBAdapter database_adapter(database);
          App app{database_adapter};
 
 And then it is clear we don't need to use getStorageFile() at all:
 
-     static void main(const vector<string> &argv)
+     static void main(const vector<string> &args)
      {
        try {
          FileDB database;
-         App::setStorageFile(argv[0]);
+         App::setStorageFile(args[0]);
 -        database.setStore(App::getStorageFile());
-+        database.setStore(argv[0]);
++        database.setStore(args[0]);
          FileDBAdapter database_adapter(database);
          App app{database_adapter};
          app.launch();
@@ -731,21 +797,22 @@ anything, and we can remove all of this:
      UI ui;
 -    static inline string store_path;
  };
- 
+
  .
  .
  .
 
  class Launcher {
    public:
-     static void main(const vector<string> &argv)
+     static void main(const vector<string> &args)
      {
        try {
          FileDB database;
--        App::setStorageFile(argv[0]);
-         database.setStore(argv[0]);
+-        App::setStorageFile(args[0]);
+         database.setStore(args[0]);
          FileDBAdapter database_adapter(database);
          App app{database_adapter};
 
-At this point, we can say that we've achieved our initial goal of
-abstracting the database.
+At this point, we can say that we've achieved our objective of
+abstracting the database and it's made a positive impact on the structure of
+our application.
